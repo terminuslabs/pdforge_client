@@ -85,6 +85,23 @@ pdf_bytes = PdforgeClient.from_url("https://example.com/print/123", {
 File.binwrite("report.pdf", pdf_bytes)
 ```
 
+### From DOCX
+
+```ruby
+docx_bytes = File.binread("invoice.docx")
+pdf_bytes  = PdforgeClient.from_docx(docx_bytes)
+
+File.binwrite("invoice.pdf", pdf_bytes)
+```
+
+The DOCX is base64-encoded and posted to the service's `/pdf/docx` route,
+which converts it via headless LibreOffice. The `options` hash is accepted
+for forward compatibility but is currently ignored server-side — Puppeteer
+options like `format` or `margin` do not apply to the LibreOffice pipeline.
+
+You do **not** need to change your `endpoint` config — if it already ends in
+`/pdf`, the client appends `/docx` automatically.
+
 ---
 
 ## Options

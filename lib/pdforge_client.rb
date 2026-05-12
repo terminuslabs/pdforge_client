@@ -29,5 +29,9 @@ module PdforgeClient
     def from_url(url, options = {})
       client.from_url(url, options)
     end
+
+    def from_docx(docx_bytes, options = {})
+      client.from_docx(docx_bytes, options)
+    end
   end
 end

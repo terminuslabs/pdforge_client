@@ -28,6 +28,17 @@ module PdforgeClient
       post(payload, @config.endpoint)
     end
 
+    # Posts to /pdfmeta. Returns { pdf_data: String(binary), positions: Array }.
+    def from_html_meta(html, options = {}, timeout_ms: nil)
+      payload = {
+        pipeline: "generate_pdf",
+        html: html,
+        options: merged_options(options),
+        timeoutMs: timeout_ms || @config.render_timeout_ms
+      }
+      post_meta(payload, pdfmeta_endpoint)
+    end
+
     def from_url(url, options = {})
       payload = { url: url, options: merged_options(options) }
       post(payload, @config.endpoint)
@@ -58,6 +69,14 @@ module PdforgeClient
       ep.end_with?("/pdf") ? "#{ep}/docx" : "#{ep.chomp('/')}/pdf/docx"
     end
 
+    # "https://host/pdf" -> "https://host/pdfmeta"
+    # "https://host"     -> "https://host/pdfmeta"
+    def pdfmeta_endpoint
+      ep = @config.endpoint.to_s.chomp("/")
+      ep = ep.delete_suffix("/pdf")
+      "#{ep}/pdfmeta"
+    end
+
     def post(payload, url)
       body = payload.to_json
       headers = { "Content-Type" => "application/json", "x-signature" => sign(body) }
@@ -72,6 +91,38 @@ module PdforgeClient
         raise RequestError.new("PdforgeClient PDF error: #{resp.code}", status: resp.code.to_i, body: resp.body.to_s)
       end
       resp.body # PDF bytes
+    end
+
+    def post_meta(payload, url)
+      body = payload.to_json
+      headers = { "Content-Type" => "application/json", "x-signature" => sign(body) }
+      resp = self.class.post(
+        url,
+        body: body,
+        headers: headers,
+        open_timeout: @config.open_timeout,
+        read_timeout: @config.read_timeout
+      )
+      unless resp.code.to_i == 200
+        raise RequestError.new("PdforgeClient PDF meta error: #{resp.code}", status: resp.code.to_i, body: resp.body.to_s)
+      end
+
+      parsed = resp.parsed_response
+      raise Error, "PdforgeClient unexpected pdfmeta response" unless parsed.is_a?(Hash)
+
+      pdf_base64 = parsed["pdf_base64"]
+      raise Error, "PdforgeClient pdfmeta missing pdf_base64" unless pdf_base64.is_a?(String) && !pdf_base64.empty?
+
+      positions = parsed["positions"]
+      positions = [] if positions.nil?
+      raise Error, "PdforgeClient pdfmeta positions must be an array" unless positions.is_a?(Array)
+
+      {
+        pdf_data: Base64.strict_decode64(pdf_base64),
+        positions: positions
+      }
+    rescue ArgumentError
+      raise Error, "PdforgeClient pdfmeta returned invalid base64"
     end
   end
 end

@@ -73,6 +73,27 @@ pdf_bytes = PdforgeClient.from_html(html, {
 send_data pdf_bytes, type: "application/pdf", disposition: "inline", filename: "invoice.pdf"
 ```
 
+
+### From HTML with field positions (`/pdfmeta`)
+
+Use this when the PDF service should return signature/field coordinates
+alongside the PDF (e.g. for PandaDoc placement):
+
+```ruby
+result = PdforgeClient.from_html_meta(html, {
+  printBackground: true,
+  format: "Letter",
+  landscape: true
+})
+
+pdf_bytes = result[:pdf_data]
+positions = result[:positions]
+```
+
+The client posts to `/pdfmeta` with `pipeline: "generate_pdf"` and
+`timeoutMs` (default `Config#render_timeout_ms`). `endpoint` may be the
+service root or end in `/pdf`; `/pdfmeta` is derived either way.
+
 ### From URL
 
 ```ruby
